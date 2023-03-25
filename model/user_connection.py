@@ -11,7 +11,7 @@ class UserConnection():
         try:
 #conexion a la base de datos videoscribe_p
             self.conn =  psycopg2.connect(
-                        database="demostrar2",
+                        database="videoscribe_p",
                         user="postgres",
                         password="sarA123456",
                         host="localhost",
@@ -30,7 +30,6 @@ class UserConnection():
             user_exist = cur.fetchone()[0]
             cur.execute("SELECT EXISTS(SELECT 1 FROM pg_catalog.pg_class WHERE relname = 'video')")
             video_exist = cur.fetchone()[0]
-            print(user_exist, video_exist)
         return user_exist and video_exist
     
 # Función para crear las tablas en la base de datos
@@ -99,8 +98,8 @@ class UserConnection():
             query= """SELECT idUser FROM \"User\" WHERE email = %s """
             cur.execute(query,(email_v,))
             data = cur.fetchall()
-            print(data)
-            return data[0]
+            id=data[0][0]
+            return id
                 
 #Funcion para leer todo en la DB videoscribe en la tabla de videos
     def read_all(self):
@@ -137,20 +136,11 @@ class UserConnection():
 
         
 #Funcion para borrar videos de la tabla videos
-    def delete_video_by_title(self, title: str):
+    def delete_video_by_title(self, id_video: str):
         with self.conn.cursor() as cur:
-        # Buscar el video por su título
-            query = """SELECT idVideo FROM Video WHERE title = %s"""
-            cur.execute(query, (title,))
-            video_id = cur.fetchone()
-
-        # Si no se encuentra el video, retornar None
-            if not video_id:
-                return None
-
         # Eliminar el video por su ID
             query = """DELETE FROM Video WHERE idVideo = %s"""
-            cur.execute(query, (video_id[0],))
+            cur.execute(query, (id_video,))
             self.conn.commit()
 
         # Retornar el número de filas afectadas (debe ser 1 si el video fue eliminado correctamente)
