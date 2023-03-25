@@ -113,3 +113,6 @@ async def delete_video(id_video: str):
         return JSONResponse(status_code=status.HTTP_200_OK, content={"message": "El video se elimino correctamente"})
 
 
+@app.post("/create")
+async def create_video(videoData):
+    return dummy
