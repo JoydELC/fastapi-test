@@ -1,5 +1,5 @@
 import psycopg2
-
+from typing import List
 #Conectarme a la base de datos cada vez que ejecute esta clase
 #Esta va a instanciarme la conexcion a la base de datos.
 
@@ -11,7 +11,7 @@ class UserConnection():
         try:
 #conexion a la base de datos videoscribe_p
             self.conn =  psycopg2.connect(
-                        database="videoscribe_p",
+                        database="video_p2",
                         user="postgres",
                         password="sarA123456",
                         host="localhost",
@@ -65,6 +65,7 @@ class UserConnection():
                         video VARCHAR(255) NOT NULL,
                         duration INTEGER NOT NULL,
                         cover VARCHAR(255) NOT NULL,
+                        gift VARCHAR(255) NOT NULL,
                         category TEXT[] NOT NULL,
                         date DATE
                     )
@@ -147,13 +148,18 @@ class UserConnection():
         return cur.rowcount
 
 
-#Funcion para actualizar datos
-    def update(self, data):
+# Funcion para insertar datos a la tabla video
+    def post_video_by_idUser(self, idUser: str, title: str, privacy: str, video: str, duration: str, cover: str, gift: str, category: List[str]):
         with self.conn.cursor() as cur:
-            cur.execute("""
-                UPDATE "user" SET name = %(name)s, phone= %(phone)s WHERE id = %(id)s
-            """, data)
-        self.conn.commit()
+            query = """
+            INSERT INTO video (idUser, title, privacy, video, duration, cover, gift, category, date) 
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, CURRENT_DATE) 
+            RETURNING idVideo
+            """
+            cur.execute(query, (idUser, title, privacy, video, duration, cover, gift, category))
+            self.conn.commit()
+            data = cur.fetchone()[0]
+            return data
 
 #Destructor
     def __def__(self):

@@ -1,10 +1,14 @@
-from fastapi import FastAPI,Body,status
+import os
+import base64
+from io import BytesIO
+from fastapi import FastAPI,Body,status,File, UploadFile,Form
 from model.user_connection import UserConnection
 from schema.user_schema import UserSchema,Video
 from fastapi.middleware.cors import CORSMiddleware
 import psycopg2
 from fastapi.responses import JSONResponse
-
+from PIL import Image
+from typing import  List
 
 app = FastAPI()
 conn = UserConnection()
@@ -113,6 +117,38 @@ async def delete_video(id_video: str):
         return JSONResponse(status_code=status.HTTP_200_OK, content={"message": "El video se elimino correctamente"})
 
 
-@app.post("/create")
-async def create_video(videoData):
-    return dummy
+@app.post("/create/{idUser}")
+async def create_video(idUser: str, title: str = Form(...), privacy: str = Form(...), duration: float = Form(...), category: List[str] = Form(...), cover: str = Form(...), gift: str = Form(...), video_file: UploadFile = File(...)):    # Generar la ruta de archivos basada en la información del usuario y del video
+    file_directory = f"recursos/{idUser}/{title}"
+    video_file_path = os.path.join(file_directory, "videos", video_file.filename)
+    cover_file_path = os.path.join(file_directory, "covers", "cover.jpeg")
+    gift_file_path = os.path.join(file_directory, "gifts", "gift.jpeg")
+
+    # Crear los directorios si no existen
+    os.makedirs(os.path.dirname(video_file_path), exist_ok=True)
+    os.makedirs(os.path.dirname(cover_file_path), exist_ok=True)
+    os.makedirs(os.path.dirname(gift_file_path), exist_ok=True)
+
+    # Guardar el archivo de video en la ruta especificada
+    with open(video_file_path, "wb") as buffer:
+        buffer.write(video_file.file.read())
+
+    # Convertir la imagen de portada de base64 a formato de imagen y guardarla en la ruta especificada
+    cover_image = Image.open(BytesIO(base64.b64decode(cover)))
+    cover_image.save(cover_file_path, "JPEG")
+
+    # Convertir la imagen de regalo de base64 a formato de imagen y guardarla en la ruta especificada
+    gift_image = Image.open(BytesIO(base64.b64decode(gift)))
+    gift_image.save(gift_file_path, "JPEG")
+
+
+
+
+    
+    
+
+    # Insertar los datos del video en la base de datos
+    data = conn.post_video_by_idUser(idUser,title,privacy,video_file_path,duration,cover_file_path,gift_file_path,category)
+    
+    # Devolver una respuesta de éxito
+    return JSONResponse(content={"message": f"Video {data} creado para el usuario {idUser}"})

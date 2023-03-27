@@ -18,3 +18,4 @@ class Video(BaseModel):
     cover: str
     category: List[str]
     date: str
+
