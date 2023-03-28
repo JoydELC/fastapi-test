@@ -85,7 +85,7 @@ class UserConnection:
                 cur.execute(
                     """
                     CREATE TABLE IF NOT EXISTS videos (
-                        idVideos SERIAL PRIMARY KEY,
+                        idVideo SERIAL PRIMARY KEY,
                         idUser INTEGER REFERENCES "users"(idUser),
                         title VARCHAR(255) NOT NULL,
                         privacy VARCHAR(255) NOT NULL,
@@ -148,7 +148,7 @@ class UserConnection:
     def all_videos_4_one(self, idUser: str):
         with self.conn.cursor() as cur:
             query = """
-            SELECT users.Name,videos.idUser, videos.idVideos, videos.title,
+            SELECT users.Name,videos.idUser, videos.idVideo, videos.title,
             videos.privacy, videos.video, videos.duration, videos.cover,
             videos.gif, videos.category, videos.date
             FROM users
@@ -203,7 +203,7 @@ class UserConnection:
             INSERT INTO videos (idUser, title, privacy, video, duration,
             cover, gif, category, date)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, CURRENT_DATE)
-            RETURNING idVideos
+            RETURNING idVideo
             """
             cur.execute(
                 query,

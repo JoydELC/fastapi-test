@@ -144,9 +144,9 @@ def get_videos_by_username(iduser: str):
             # Convertir el objeto date a una cadena de caracteres
             video_date = row[10].strftime("%Y-%m-%d")
 
-            videoPath = row[5].split("/")[-1]
-            coverPath = row[7].split("/")[-1]
-            gifPath = row[8].split("/")[-1]
+            videoPath = row[5]
+            coverPath = row[7]
+            gifPath = row[8]
 
             videoBlob = bucket.blob(videoPath)
             coverBlob = bucket.blob(coverPath)
