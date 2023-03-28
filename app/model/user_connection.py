@@ -160,7 +160,7 @@ class UserConnection:
             return data
 
     # Funcion para obtener un videos por el id de videos
-    def find_videos_by_id(self, idVideo: str):
+    def find_video_by_id(self, idVideo: str):
         with self.conn.cursor() as cur:
             query = """
                 SELECT users.Name,videos.idUser,videos.idVideo, videos.title,

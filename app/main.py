@@ -215,6 +215,22 @@ def get_videos_by_username(iduser: str):
 
 @app.delete("/delete/{id_video}")
 async def delete_video(id_video: str):
+    data = conn.find_video_by_id(id_video)
+
+    videoPath = data[5]
+    coverPath = data[7]
+    gifPath = data[8]
+
+    # Get a reference to the blob (file) you want to delete
+    videoBlob = bucket.blob(videoPath)
+    coverBlob = bucket.blob(coverPath)
+    gifBlob = bucket.blob(gifPath)
+
+    # Delete the blob
+    videoBlob.delete()
+    coverBlob.delete()
+    gifBlob.delete()
+
     result = conn.delete_video_by_title(id_video)
     if result == 0:
         return JSONResponse(
