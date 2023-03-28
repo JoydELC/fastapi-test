@@ -28,7 +28,7 @@ client = storage.Client(credentials=credentials)
 bucket = client.get_bucket("videoscribe-bucket")
 
 
-# Peticion para registrar usuarios
+# Request to register users
 @app.post("/signin")
 def insert(user_data: UserSchema = Body()):
     data = user_data.dict()
@@ -37,7 +37,7 @@ def insert(user_data: UserSchema = Body()):
         conn.write(data)
         return JSONResponse(
             status_code=status.HTTP_201_CREATED,
-            content={"message": "Registrado con exito"},
+            content={"message": "successfully registered"},
         )
     except (Exception, psycopg2.DatabaseError) as error:
         print(error)
@@ -47,22 +47,22 @@ def insert(user_data: UserSchema = Body()):
         )
 
 
-# Peticion de Login
+# Login Request
 @app.post("/login")
 async def login(email: str = Body(), password: str = Body()):
-    email_v = conn.authenticate_user(email, password)
-    if not email_v:
+    userValidation = conn.authenticate_user(email, password)
+    if not userValidation:
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
-            content={"message": "Correo electrónico o contraseña incorrectos"},
+            content={"message": "Wrong email or password"},
         )
         # raise HTTPException(status_code=400,
         # detail="Correo electrónico o contraseña incorrectos")
-    id = conn.return_id(email_v)
+    id = conn.return_id(userValidation)
     return JSONResponse(status_code=status.HTTP_200_OK, content={"idUser": id})
 
 
-# Todos los videos:
+# GET all videos
 @app.get("/videos")
 def get_all_videos():
     try:
@@ -70,13 +70,18 @@ def get_all_videos():
         for data in conn.read_all():
             dictionary = {}
 
-            videoPath = data[4].split("/")[-1]
-            coverPath = data[6].split("/")[-1]
-            gifPath = data[7].split("/")[-1]
+            videoPath = data[4]
+            coverPath = data[6]
+            gifPath = data[7]
 
             videoBlob = bucket.blob(videoPath)
             coverBlob = bucket.blob(coverPath)
             gifBlob = bucket.blob(gifPath)
+
+            # Create directories temporarily if they don't exist
+            os.makedirs(os.path.dirname(videoPath), exist_ok=True)
+            os.makedirs(os.path.dirname(coverPath), exist_ok=True)
+            os.makedirs(os.path.dirname(gifPath), exist_ok=True)
 
             videoBlob.download_to_filename(videoPath)
             coverBlob.download_to_filename(coverPath)
@@ -103,9 +108,7 @@ def get_all_videos():
                 # encode binary data as base64 string
                 base64_gif = base64.b64encode(gif_data).decode("utf-8")
 
-            os.remove(videoPath)
-            os.remove(coverPath)
-            os.remove(gifPath)
+            shutil.rmtree("users")
 
             dictionary["idvideo"] = data[0]
             dictionary["iduser"] = data[1]
@@ -122,26 +125,26 @@ def get_all_videos():
         return items
     except (Exception, psycopg2.DatabaseError) as error:
         print(error)
-        return {"message": "No se obtuvo la data"}
+        return {"message": "No data obtained"}
 
 
-# Peticion para todos los videos de un usuario
+# Request to GET all videos of a user
 @app.get("/video/{iduser}")
 def get_videos_by_username(iduser: str):
     try:
         data = conn.all_videos_4_one(iduser)
         if not data:
-            message = "No se encontraron videos para el usuario especificado"
+            message = "No videos found for the specified user"
             return JSONResponse(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 content={"message": message},
             )
 
-        # Crear una lista de objetos Video a partir
-        # de los resultados de la consulta
+        # Create a list of Video objects
+        # from the query results
         videos = []
         for row in data:
-            # Convertir el objeto date a una cadena de caracteres
+            # Convert the date object to a string
             video_date = row[10].strftime("%Y-%m-%d")
 
             videoPath = row[5]
@@ -151,6 +154,11 @@ def get_videos_by_username(iduser: str):
             videoBlob = bucket.blob(videoPath)
             coverBlob = bucket.blob(coverPath)
             gifBlob = bucket.blob(gifPath)
+
+            # Create directories temporarily if they don't exist
+            os.makedirs(os.path.dirname(videoPath), exist_ok=True)
+            os.makedirs(os.path.dirname(coverPath), exist_ok=True)
+            os.makedirs(os.path.dirname(gifPath), exist_ok=True)
 
             videoBlob.download_to_filename(videoPath)
             coverBlob.download_to_filename(coverPath)
@@ -177,11 +185,9 @@ def get_videos_by_username(iduser: str):
                 # encode binary data as base64 string
                 base64_gif = base64.b64encode(gif_data).decode("utf-8")
 
-            os.remove(videoPath)
-            os.remove(coverPath)
-            os.remove(gifPath)
+            shutil.rmtree("users")
 
-            # Crear un objeto Video
+            # create video object
             video = Video(
                 name=row[0],
                 iduser=row[1],
@@ -195,16 +201,15 @@ def get_videos_by_username(iduser: str):
                 category=row[9],
                 date=video_date,
             )
-            # Agregar el objeto a la lista de videos
+            # Add object to video list
             videos.append(video)
-        # print(videos)
         return videos
 
     except (Exception, psycopg2.Error) as error:
-        print("Error al conectarse a la base de datos", error)
+        print("Error connecting to database: ", error)
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content={"message": "Error al conectarse en la base de datos"},
+            content={"message": "Error connecting to database"},
         )
 
 
@@ -214,12 +219,12 @@ async def delete_video(id_video: str):
     if result == 0:
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
-            content={"message": "El video no se pudo eliminar"},
+            content={"message": "The video could not be deleted"},
         )
     else:
         return JSONResponse(
             status_code=status.HTTP_200_OK,
-            content={"message": "El video se elimino correctamente"},
+            content={"message": "The video was successfully removed"},
         )
 
 
@@ -234,8 +239,7 @@ async def create_video(
     gif: Annotated[str, Form()],
     video_file: Annotated[UploadFile, File()],
 ):
-    # Generar la ruta de archivos basada en la
-    # información del usuario y del video
+    # Create a file path based on user and video information
 
     parentDir = f"users/{idUser}/{title}"
     video_file_path = parentDir + "/videos/" + video_file.filename
@@ -249,7 +253,7 @@ async def create_video(
     coverBlob = bucket.blob(cover_file_path)
     gifBlob = bucket.blob(gif_file_path)
 
-    # Crear temporalmente los directorios si no existen
+    # Create directories temporarily if they don't exist
     os.makedirs(os.path.dirname(video_file_path), exist_ok=True)
     os.makedirs(os.path.dirname(cover_file_path), exist_ok=True)
     os.makedirs(os.path.dirname(gif_file_path), exist_ok=True)
@@ -272,7 +276,7 @@ async def create_video(
 
     shutil.rmtree("users")
 
-    # Insertar los datos del video en la base de datos
+    # Insert video data into the database
     data = conn.post_video_by_idUser(
         idUser,
         title,
@@ -284,8 +288,8 @@ async def create_video(
         category,
     )
 
-    # Devolver una respuesta de éxito
+    # Return a success response
     return JSONResponse(
         status_code=status.HTTP_201_CREATED,
-        content={"message": f"Video {data} creado para el usuario {idUser}"},
+        content={"message": f"Video {data} created for user {idUser}"},
     )
